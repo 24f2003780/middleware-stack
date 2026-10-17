@@ -20,19 +20,10 @@ requests_by_client = defaultdict(deque)
 
 
 @app.middleware("http")
-async def request_context(request: Request, call_next):
-    request_id = request.headers.get("X-Request-ID")
-    if not request_id:
-        request_id = str(uuid.uuid4())
-
+async def middleware_stack(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     request.scope["request_id"] = request_id
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    return response
 
-
-@app.middleware("http")
-async def rate_limit(request: Request, call_next):
     if request.url.path == "/ping" and request.method == "GET":
         client_id = request.headers.get("X-Client-Id", "anonymous")
         now = time.monotonic()
@@ -44,17 +35,15 @@ async def rate_limit(request: Request, call_next):
         if len(bucket) >= 10:
             return JSONResponse(
                 status_code=429,
-                content={
-                    "detail": "Rate limit exceeded",
-                    "email": EMAIL,
-                    "request_id": request.scope["request_id"],
-                },
-                headers={"X-Request-ID": request.scope["request_id"]},
+                content={"detail": "Rate limit exceeded"},
+                headers={"X-Request-ID": request_id},
             )
 
         bucket.append(now)
 
-    return await call_next(request)
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
 
 
 app.add_middleware(
