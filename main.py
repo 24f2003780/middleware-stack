@@ -46,13 +46,19 @@ async def middleware_stack(request: Request, call_next):
     return response
 
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
+    allow_origins=[
+        "https://app-n6bf67.example.com",
+        "https://exam.sanand.workers.dev",
+    ],
     allow_credentials=False,
     allow_methods=["GET", "OPTIONS"],
     allow_headers=["X-Request-ID", "X-Client-Id"],
+    expose_headers=["X-Request-ID"],
 )
+
 
 
 @app.get("/")
